@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
-import '../providers/cart_provider.dart';
-import '../providers/favorite_provider.dart';
-import 'register_screen.dart';
-import 'main_navigation.dart';
-import 'admin/admin_navigation.dart';
+import '../providers/auth_provider.dart';
+import '../utils/constants.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,7 +14,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
   bool _obscurePassword = true;
 
   @override
@@ -31,71 +24,34 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      try {
-        UserCredential userCredential = await FirebaseAuth.instance
-            .signInWithEmailAndPassword(
-                email: _emailController.text.trim(),
-                password: _passwordController.text.trim());
+    if (!_formKey.currentState!.validate()) return;
 
-        if (userCredential.user != null) {
-          DocumentSnapshot userDoc = await FirebaseFirestore.instance
-              .collection('Users')
-              .doc(userCredential.user!.uid)
-              .get();
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final error = await auth.login(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
 
-          String role = 'Customer';
-          if (userDoc.exists && userDoc.data() != null) {
-            final data = userDoc.data() as Map<String, dynamic>;
-            role = data['Role'] ?? 'Customer';
-            final name = data['Name'] ?? '';
-            final phone = data['Phone'] ?? '';
-            
-            // Update UserProvider & other providers
-            if (mounted) {
-              Provider.of<UserProvider>(context, listen: false)
-                  .setUserInfo(name, userCredential.user!.email ?? '', phone);
-              Provider.of<CartProvider>(context, listen: false).loadCartData();
-              Provider.of<FavoriteProvider>(context, listen: false).loadFavorites();
-            }
-          }
+    if (!mounted) return;
 
-          if (!mounted) return;
-          if (role == 'Admin') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const AdminNavigation()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MainNavigation()),
-            );
-          }
-        }
-      } on FirebaseAuthException catch (e) {
-        String message = 'Có lỗi xảy ra.';
-        if (e.code == 'user-not-found') message = 'Không tìm thấy tài khoản với email này.';
-        if (e.code == 'wrong-password') message = 'Sai mật khẩu.';
-        if (e.code == 'invalid-credential') message = 'Email hoặc mật khẩu không chính xác.';
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(message),
-            backgroundColor: const Color(0xFFE8002D),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ));
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error),
+        backgroundColor: AppColors.gundamRed,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ));
+    } else {
+      final route = auth.isAdmin ? AppRoutes.admin : AppRoutes.home;
+      Navigator.pushReplacementNamed(context, route);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final auth = Provider.of<AuthProvider>(context);
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -113,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8002D),
+                          color: AppColors.gundamRed,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.rocket_launch, color: Colors.white, size: 22),
@@ -125,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2,
-                          color: Color(0xFFE8002D),
+                          color: AppColors.gundamRed,
                         ),
                       ),
                     ],
@@ -153,8 +109,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       hintText: 'example@email.com',
                       prefixIcon: Icon(Icons.mail_outline, size: 20),
                     ),
-                    validator: (value) =>
-                        value!.isEmpty || !value.contains('@') ? 'Email không hợp lệ' : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Vui lòng nhập email';
+                      if (!value.contains('@') || !value.contains('.')) return 'Email không hợp lệ';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 20),
                   _buildLabel('Mật khẩu'),
@@ -172,20 +131,22 @@ class _LoginScreenState extends State<LoginScreen> {
                               : Icons.visibility_outlined,
                           size: 20,
                         ),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
-                    validator: (value) =>
-                        value!.length < 6 ? 'Mật khẩu ít nhất 6 ký tự' : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Vui lòng nhập mật khẩu';
+                      if (value.length < 6) return 'Mật khẩu ít nhất 6 ký tự';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 36),
                   SizedBox(
                     width: double.infinity,
                     height: 52,
-                    child: _isLoading
+                    child: auth.isLoading
                         ? const Center(
-                            child: CircularProgressIndicator(color: Color(0xFFE8002D)))
+                            child: CircularProgressIndicator(color: AppColors.gundamRed))
                         : ElevatedButton(
                             onPressed: _login,
                             child: const Text('ĐĂNG NHẬP',
@@ -203,37 +164,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                        ),
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.register),
                         child: const Text(
                           'Đăng ký ngay',
                           style: TextStyle(
-                            color: Color(0xFFE8002D),
+                            color: AppColors.gundamRed,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MainNavigation()),
-                        );
-                      },
-                      child: const Text(
-                        'Bỏ qua & Xem trước ứng dụng',
-                        style: TextStyle(
-                          color: Color(0xFF888890),
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 40),
                 ],

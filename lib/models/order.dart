@@ -1,52 +1,43 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-class OrderModel {
-  final String id;
-  final String userId;
-  final String customerName;
-  final String phone;
-  final String address;
+class Order {
+  final int? id;
+  final int userId;
   final double totalAmount;
+  final String address;
+  final String phone;
   final String status;
-  final DateTime orderDate;
-  final List<Map<String, dynamic>> items; // Chứa {productId, name, price, quantity}
+  final String createdAt;
 
-  OrderModel({
-    required this.id,
+  Order({
+    this.id,
     required this.userId,
-    required this.customerName,
-    required this.phone,
-    required this.address,
     required this.totalAmount,
+    required this.address,
+    required this.phone,
     required this.status,
-    required this.orderDate,
-    required this.items,
+    required this.createdAt,
   });
-
-  factory OrderModel.fromMap(Map<String, dynamic> data, String documentId) {
-    return OrderModel(
-      id: documentId,
-      userId: data['UserId'] ?? '',
-      customerName: data['CustomerName'] ?? '',
-      phone: data['Phone'] ?? '',
-      address: data['Address'] ?? '',
-      totalAmount: (data['TotalAmount'] ?? 0).toDouble(),
-      status: data['Status'] ?? 'Pending',
-      orderDate: (data['OrderDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      items: List<Map<String, dynamic>>.from(data['Items'] ?? []),
-    );
-  }
 
   Map<String, dynamic> toMap() {
     return {
-      'UserId': userId,
-      'CustomerName': customerName,
-      'Phone': phone,
-      'Address': address,
-      'TotalAmount': totalAmount,
-      'Status': status,
-      'OrderDate': FieldValue.serverTimestamp(),
-      'Items': items,
+      'id': id,
+      'user_id': userId,
+      'total_amount': totalAmount,
+      'address': address,
+      'phone': phone,
+      'status': status,
+      'created_at': createdAt,
     };
+  }
+
+  factory Order.fromMap(Map<String, dynamic> map) {
+    return Order(
+      id: map['id'] as int?,
+      userId: map['user_id'] as int,
+      totalAmount: (map['total_amount'] as num).toDouble(),
+      address: map['address'] as String,
+      phone: map['phone'] as String,
+      status: map['status'] as String,
+      createdAt: map['created_at'] as String,
+    );
   }
 }

@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
-import '../providers/cart_provider.dart';
-import '../providers/favorite_provider.dart';
-import 'login_screen.dart';
-import 'main_navigation.dart';
-import 'admin/admin_navigation.dart';
+import '../providers/auth_provider.dart';
+import '../utils/constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -37,53 +31,38 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _slideUp = Tween<double>(begin: 30, end: 0).animate(
       CurvedAnimation(
-          parent: _controller,
-          curve: const Interval(0.2, 0.8, curve: Curves.easeOut)),
+        parent: _controller,
+        curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
+      ),
     );
     _scaleAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(
-          parent: _controller,
-          curve: const Interval(0.0, 0.7, curve: Curves.easeOut)),
+        parent: _controller,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+      ),
     );
 
     _controller.forward();
+    _checkAuth();
+  }
 
-    Future.delayed(const Duration(milliseconds: 3200), () async {
-      Widget nextScreen = const MainNavigation();
-      
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Tải dữ liệu profile, cart, favorites
-        if (mounted) {
-          await Provider.of<UserProvider>(context, listen: false).loadUserData();
-          Provider.of<CartProvider>(context, listen: false).loadCartData();
-          Provider.of<FavoriteProvider>(context, listen: false).loadFavorites();
-        }
-        
-        // Kiểm tra Role Admin
-        String role = 'Customer';
-        final doc = await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
-        if (doc.exists && doc.data() != null) {
-          role = doc.data()!['Role'] ?? 'Customer';
-        }
-        
-        if (role == 'Admin') {
-          nextScreen = const AdminNavigation();
-        }
-      }
+  Future<void> _checkAuth() async {
+    await Future.delayed(const Duration(milliseconds: 2500));
+    if (!mounted) return;
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => nextScreen,
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
-      }
-    });
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final isLoggedIn = await auth.tryAutoLogin();
+
+    if (!mounted) return;
+
+    String route;
+    if (isLoggedIn) {
+      route = auth.isAdmin ? AppRoutes.admin : AppRoutes.home;
+    } else {
+      route = AppRoutes.login;
+    }
+
+    Navigator.pushReplacementNamed(context, route);
   }
 
   @override
@@ -95,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0F),
+      backgroundColor: AppColors.darkBg,
       body: Stack(
         children: [
           Positioned(
@@ -106,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFE8002D).withOpacity(0.06),
+                color: AppColors.gundamRed.withValues(alpha: 0.06),
               ),
             ),
           ),
@@ -118,7 +97,7 @@ class _SplashScreenState extends State<SplashScreen>
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFE8002D).withOpacity(0.04),
+                color: AppColors.gundamRed.withValues(alpha: 0.04),
               ),
             ),
           ),
@@ -146,7 +125,7 @@ class _SplashScreenState extends State<SplashScreen>
                             width: 40,
                             height: 3,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE8002D),
+                              color: AppColors.gundamRed,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),

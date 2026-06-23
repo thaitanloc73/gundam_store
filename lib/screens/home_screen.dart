@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../database/firebase_service.dart';
-import '../models/product.dart';
-import 'product_detail_screen.dart';
+import 'package:provider/provider.dart';
+import '../providers/gundam_provider.dart';
+import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/cart_provider.dart';
+
+import '../widgets/gundam_card.dart';
+import '../widgets/loading_widget.dart';
+import '../utils/constants.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,15 +17,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final FirebaseService _firebaseService = FirebaseService();
-  String _selectedCategory = 'Tất cả';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _firebaseService.seedInitialData();
+    Future.microtask(() {
+      Provider.of<GundamProvider>(context, listen: false).fetchGundams();
+    });
   }
 
   @override
@@ -29,25 +34,18 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  String _formatPrice(double price) {
-    final formatted = price.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
-    return '$formatted₫';
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0D0D0F) : const Color(0xFFF0F0F5);
-    final surfaceColor = isDark ? const Color(0xFF1A1A1E) : Colors.white;
-    final cardColor = isDark ? const Color(0xFF242428) : const Color(0xFFF8F8FC);
-    final borderColor = isDark ? const Color(0xFF2E2E34) : Colors.grey.shade200;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
     final textSecondary = isDark ? const Color(0xFF888890) : Colors.grey.shade600;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final orientation = MediaQuery.of(context).orientation;
+    final crossAxisCount = orientation == Orientation.landscape
+        ? (screenWidth > 900 ? 4 : 3)
+        : 2;
 
     return Scaffold(
-      backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -55,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
             floating: true,
             snap: true,
             elevation: 0,
+            automaticallyImplyLeading: false,
             titleSpacing: 20,
             title: Row(
               children: [
@@ -62,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8002D),
+                    color: AppColors.gundamRed,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.rocket_launch, color: Colors.white, size: 18),
@@ -74,16 +73,70 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2,
-                    color: Color(0xFFE8002D),
+                    color: AppColors.gundamRed,
                   ),
                 ),
               ],
             ),
             actions: [
               IconButton(
-                icon: Icon(Icons.notifications_outlined,
-                    color: isDark ? Colors.white : const Color(0xFF0D0D0F)),
-                onPressed: () {},
+                icon: Consumer<ThemeProvider>(
+                  builder: (context, theme, _) => Icon(
+                    theme.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                  ),
+                ),
+                onPressed: () {
+                  Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                },
+              ),
+              Stack(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.shopping_cart_outlined,
+                      color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                    ),
+                    onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
+                  ),
+                  Consumer<CartProvider>(
+                    builder: (context, cart, _) {
+                      if (cart.totalItems == 0) return const SizedBox.shrink();
+                      return Positioned(
+                        right: 6,
+                        top: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: AppColors.gundamRed,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Text(
+                            '${cart.totalItems}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.logout,
+                  color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                ),
+                onPressed: () async {
+                  await Provider.of<AuthProvider>(context, listen: false).logout();
+                  if (!mounted) return;
+                  Navigator.pushReplacementNamed(context, AppRoutes.login);
+                },
               ),
             ],
             bottom: PreferredSize(
@@ -106,82 +159,51 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           )
                         : null,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                   ),
                 ),
               ),
             ),
           ),
+          if (_searchQuery.isEmpty)
+            SliverToBoxAdapter(child: _buildHeroBanner()),
           SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_searchQuery.isEmpty) _buildHeroBanner(),
-                const SizedBox(height: 24),
-                _buildSectionHeader('Danh mục', isDark),
-                const SizedBox(height: 12),
-                _buildCategories(borderColor, isDark),
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _selectedCategory == 'Tất cả'
-                            ? 'Tất cả sản phẩm'
-                            : _selectedCategory,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0D0D0F),
-                        ),
-                      ),
-                      StreamBuilder<List<Product>>(
-                        stream: _firebaseService.getProductsStream(),
-                        builder: (context, snap) {
-                          final count = snap.data
-                                  ?.where((p) =>
-                                      (_selectedCategory == 'Tất cả' ||
-                                          p.category == _selectedCategory) &&
-                                      (_searchQuery.isEmpty ||
-                                          p.name
-                                              .toLowerCase()
-                                              .contains(_searchQuery)))
-                                  .length ??
-                              0;
-                          return Text('$count sản phẩm',
-                              style: TextStyle(fontSize: 13, color: textSecondary));
-                        },
-                      ),
-                    ],
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: AppColors.gundamRed,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-              ],
+                  const SizedBox(width: 10),
+                  Text(
+                    'Tất cả sản phẩm',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          StreamBuilder<List<Product>>(
-            stream: _firebaseService.getProductsStream(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          Consumer<GundamProvider>(
+            builder: (context, gundamProvider, _) {
+              if (gundamProvider.isLoading) {
                 return const SliverFillRemaining(
-                  child: Center(
-                      child: CircularProgressIndicator(color: Color(0xFFE8002D))),
+                  child: LoadingWidget(),
                 );
               }
-              if (snapshot.hasError) {
-                return SliverFillRemaining(
-                    child: Center(child: Text('Lỗi: ${snapshot.error}')));
-              }
 
-              final products = (snapshot.data ?? []).where((p) {
-                final matchCat = _selectedCategory == 'Tất cả' ||
-                    p.category == _selectedCategory;
-                final matchSearch = _searchQuery.isEmpty ||
-                    p.name.toLowerCase().contains(_searchQuery);
-                return matchCat && matchSearch;
+              final products = gundamProvider.gundams.where((g) {
+                if (_searchQuery.isEmpty) return true;
+                return g.name.toLowerCase().contains(_searchQuery);
               }).toList();
 
               if (products.isEmpty) {
@@ -192,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Icon(Icons.search_off, size: 60, color: textSecondary),
                         const SizedBox(height: 12),
-                        Text('Không tìm thấy sản phẩm',
+                        Text('Không có sản phẩm nào',
                             style: TextStyle(color: textSecondary)),
                       ],
                     ),
@@ -204,15 +226,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                 sliver: SliverGrid(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) =>
-                        _buildProductCard(products[index], cardColor, borderColor, isDark),
+                    (context, index) => GundamCard(
+                      gundam: products[index],
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.productDetail,
+                          arguments: products[index].id,
+                        );
+                      },
+                    ),
                     childCount: products.length,
                   ),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 220,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 0.72,
+                    childAspectRatio: 0.68,
                   ),
                 ),
               );
@@ -230,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
-          colors: [Color(0xFF1A0005), Color(0xFF3D0010), Color(0xFFE8002D)],
+          colors: [Color(0xFF1A0005), Color(0xFF3D0010), AppColors.gundamRed],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
@@ -245,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 140,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -257,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.04),
+                color: Colors.white.withValues(alpha: 0.04),
               ),
             ),
           ),
@@ -270,26 +300,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
-                    'MỚI NHẤT 2025',
+                    'BỘ SƯU TẬP 2025',
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        letterSpacing: 1.5,
-                        fontWeight: FontWeight.w700),
+                      color: Colors.white,
+                      fontSize: 10,
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
                 const Text(
                   'Mô hình\nchính hãng Bandai',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2),
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -299,200 +331,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
-                    'Khám phá ngay',
+                    'SD · HG · RG · MG · PG',
                     style: TextStyle(
-                        color: Color(0xFFE8002D),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700),
+                      color: AppColors.gundamRed,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 18,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8002D),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : const Color(0xFF0D0D0F),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategories(Color borderColor, bool isDark) {
-    return StreamBuilder<List<String>>(
-      stream: _firebaseService.getCategoriesStream(),
-      builder: (context, snapshot) {
-        final cats = ['Tất cả', ...(snapshot.data ?? [])];
-        return SizedBox(
-          height: 38,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: cats.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, i) {
-              final cat = cats[i];
-              final selected = _selectedCategory == cat;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedCategory = cat),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFFE8002D)
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: selected
-                          ? const Color(0xFFE8002D)
-                          : borderColor,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    cat,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? Colors.white
-                          : (isDark
-                              ? const Color(0xFF888890)
-                              : Colors.grey.shade600),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildProductCard(
-      Product product, Color cardColor, Color borderColor, bool isDark) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: product.image,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: isDark
-                            ? const Color(0xFF1A1A1E)
-                            : Colors.grey.shade100,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                              color: Color(0xFFE8002D), strokeWidth: 2),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: isDark
-                            ? const Color(0xFF1A1A1E)
-                            : Colors.grey.shade100,
-                        child: const Icon(Icons.broken_image_outlined,
-                            color: Color(0xFF444450)),
-                      ),
-                    ),
-                    if (product.stock <= 3)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8002D),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'SẮP HẾT',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: isDark ? Colors.white : const Color(0xFF0D0D0F),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _formatPrice(product.price),
-                    style: const TextStyle(
-                      color: Color(0xFFE8002D),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

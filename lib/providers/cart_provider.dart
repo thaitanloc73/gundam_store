@@ -1,38 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CartItem {
-  final String id;
+  final int gundamId;
   final String name;
   final double price;
+  final String imageUrl;
   int quantity;
 
-  CartItem({required this.id, required this.name, required this.price, this.quantity = 1});
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'price': price,
-      'quantity': quantity,
-    };
-  }
-
-  factory CartItem.fromMap(Map<String, dynamic> map) {
-    return CartItem(
-      id: map['id'] ?? '',
-      name: map['name'] ?? '',
-      price: (map['price'] ?? 0).toDouble(),
-      quantity: map['quantity'] ?? 1,
-    );
-  }
+  CartItem({
+    required this.gundamId,
+    required this.name,
+    required this.price,
+    required this.imageUrl,
+    this.quantity = 1,
+  });
 }
 
 class CartProvider extends ChangeNotifier {
-  final Map<String, CartItem> _items = {};
+  final Map<int, CartItem> _items = {};
 
-  Map<String, CartItem> get items => _items;
+  Map<int, CartItem> get items => _items;
 
   int get totalItems => _items.values.fold(0, (sum, item) => sum + item.quantity);
 
@@ -44,64 +31,37 @@ class CartProvider extends ChangeNotifier {
     return total;
   }
 
-  Future<void> loadCartData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final doc = await FirebaseFirestore.instance.collection('Carts').doc(user.uid).get();
-    if (doc.exists && doc.data() != null) {
-      final data = doc.data() as Map<String, dynamic>;
-      final itemsData = data['items'] as List<dynamic>? ?? [];
-      
-      _items.clear();
-      for (var item in itemsData) {
-        final cartItem = CartItem.fromMap(item as Map<String, dynamic>);
-        _items[cartItem.id] = cartItem;
-      }
-      notifyListeners();
-    }
-  }
-
-  Future<void> _syncToFirestore() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final List<Map<String, dynamic>> itemsList = _items.values.map((item) => item.toMap()).toList();
-      await FirebaseFirestore.instance.collection('Carts').doc(user.uid).set({
-        'items': itemsList,
-      });
-    }
-  }
-
-  void addItem(String productId, String name, double price) {
-    if (_items.containsKey(productId)) {
-      _items[productId]!.quantity++;
+  void addItem(int gundamId, String name, double price, String imageUrl) {
+    if (_items.containsKey(gundamId)) {
+      _items[gundamId]!.quantity++;
     } else {
-      _items[productId] = CartItem(id: productId, name: name, price: price);
+      _items[gundamId] = CartItem(
+        gundamId: gundamId,
+        name: name,
+        price: price,
+        imageUrl: imageUrl,
+      );
     }
     notifyListeners();
-    _syncToFirestore();
   }
 
-  void decreaseQty(String productId) {
-    if (!_items.containsKey(productId)) return;
-    if (_items[productId]!.quantity > 1) {
-      _items[productId]!.quantity--;
+  void decreaseQty(int gundamId) {
+    if (!_items.containsKey(gundamId)) return;
+    if (_items[gundamId]!.quantity > 1) {
+      _items[gundamId]!.quantity--;
     } else {
-      _items.remove(productId);
+      _items.remove(gundamId);
     }
     notifyListeners();
-    _syncToFirestore();
   }
 
-  void removeItem(String productId) {
-    _items.remove(productId);
+  void removeItem(int gundamId) {
+    _items.remove(gundamId);
     notifyListeners();
-    _syncToFirestore();
   }
 
   void clear() {
     _items.clear();
     notifyListeners();
-    _syncToFirestore();
   }
 }

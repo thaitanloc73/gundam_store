@@ -1,36 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class ThemeProvider extends ChangeNotifier {
   bool _isDarkMode = true;
 
   bool get isDarkMode => _isDarkMode;
-
-  static const Color gundamRed = Color(0xFFE8002D);
-  static const Color gundamRedDark = Color(0xFFB0001F);
-  static const Color gundamGold = Color(0xFFFFB800);
-  static const Color darkBg = Color(0xFF0D0D0F);
-  static const Color darkSurface = Color(0xFF1A1A1E);
-  static const Color darkCard = Color(0xFF242428);
-  static const Color darkBorder = Color(0xFF2E2E34);
-  static const Color lightBg = Color(0xFFF0F0F5);
-  static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightCard = Color(0xFFF8F8FC);
-
   ThemeData get currentTheme => _isDarkMode ? _darkTheme : _lightTheme;
+
+  Future<void> loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isDarkMode = prefs.getBool('isDarkMode') ?? true;
+    notifyListeners();
+  }
+
+  Future<void> toggleTheme() async {
+    _isDarkMode = !_isDarkMode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', _isDarkMode);
+    notifyListeners();
+  }
 
   static final ThemeData _darkTheme = ThemeData(
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: darkBg,
-    primaryColor: gundamRed,
+    scaffoldBackgroundColor: AppColors.darkBg,
+    primaryColor: AppColors.gundamRed,
     colorScheme: const ColorScheme.dark(
-      primary: gundamRed,
-      secondary: gundamGold,
-      surface: darkSurface,
+      primary: AppColors.gundamRed,
+      secondary: AppColors.gundamGold,
+      surface: AppColors.darkSurface,
       onPrimary: Colors.white,
       onSurface: Colors.white,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: darkBg,
+      backgroundColor: AppColors.darkBg,
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: false,
@@ -43,23 +46,23 @@ class ThemeProvider extends ChangeNotifier {
       iconTheme: IconThemeData(color: Colors.white),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: darkSurface,
-      selectedItemColor: gundamRed,
+      backgroundColor: AppColors.darkSurface,
+      selectedItemColor: AppColors.gundamRed,
       unselectedItemColor: Color(0xFF666670),
       elevation: 0,
       type: BottomNavigationBarType.fixed,
     ),
     cardTheme: CardThemeData(
-      color: darkCard,
+      color: AppColors.darkCard,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: darkBorder, width: 1),
+        side: const BorderSide(color: AppColors.darkBorder, width: 1),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: gundamRed,
+        backgroundColor: AppColors.gundamRed,
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
@@ -69,68 +72,60 @@ class ThemeProvider extends ChangeNotifier {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: darkCard,
+      fillColor: AppColors.darkCard,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: darkBorder),
+        borderSide: const BorderSide(color: AppColors.darkBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: darkBorder),
+        borderSide: const BorderSide(color: AppColors.darkBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: gundamRed, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.gundamRed, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: gundamRed),
+        borderSide: const BorderSide(color: AppColors.gundamRed),
       ),
       labelStyle: const TextStyle(color: Color(0xFF888890)),
       hintStyle: const TextStyle(color: Color(0xFF555560)),
     ),
-    chipTheme: ChipThemeData(
-      backgroundColor: darkCard,
-      selectedColor: gundamRed.withOpacity(0.2),
-      side: const BorderSide(color: darkBorder),
-      labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    ),
-    dividerColor: darkBorder,
+    dividerColor: AppColors.darkBorder,
     iconTheme: const IconThemeData(color: Color(0xFF888890)),
   );
 
   static final ThemeData _lightTheme = ThemeData(
     brightness: Brightness.light,
-    scaffoldBackgroundColor: lightBg,
-    primaryColor: gundamRed,
+    scaffoldBackgroundColor: AppColors.lightBg,
+    primaryColor: AppColors.gundamRed,
     colorScheme: const ColorScheme.light(
-      primary: gundamRed,
-      secondary: gundamGold,
-      surface: lightSurface,
+      primary: AppColors.gundamRed,
+      secondary: AppColors.gundamGold,
+      surface: AppColors.lightSurface,
       onPrimary: Colors.white,
     ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: lightSurface,
-      foregroundColor: const Color(0xFF0D0D0F),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.lightSurface,
+      foregroundColor: Color(0xFF0D0D0F),
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
         color: Color(0xFF0D0D0F),
         fontSize: 20,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
       ),
-      shadowColor: Colors.black.withOpacity(0.05),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: lightSurface,
-      selectedItemColor: gundamRed,
+      backgroundColor: AppColors.lightSurface,
+      selectedItemColor: AppColors.gundamRed,
       unselectedItemColor: Color(0xFFAAAAAA),
       type: BottomNavigationBarType.fixed,
     ),
     cardTheme: CardThemeData(
-      color: lightCard,
+      color: AppColors.lightCard,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -139,7 +134,7 @@ class ThemeProvider extends ChangeNotifier {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: gundamRed,
+        backgroundColor: AppColors.gundamRed,
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
@@ -160,18 +155,13 @@ class ThemeProvider extends ChangeNotifier {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: gundamRed, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.gundamRed, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: gundamRed),
+        borderSide: const BorderSide(color: AppColors.gundamRed),
       ),
     ),
     dividerColor: Colors.grey.shade200,
   );
-
-  void toggleTheme() {
-    _isDarkMode = !_isDarkMode;
-    notifyListeners();
-  }
 }
