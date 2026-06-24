@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../models/gundam.dart';
 import '../providers/gundam_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 
 class ProductDetailScreen extends StatelessWidget {
@@ -15,6 +17,7 @@ class ProductDetailScreen extends StatelessWidget {
     final gundamId = ModalRoute.of(context)!.settings.arguments as int;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
 
     final borderColor = isDark ? AppColors.darkBorder : Colors.grey.shade200;
 
@@ -47,40 +50,139 @@ class ProductDetailScreen extends StatelessWidget {
           body: CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 320,
+                backgroundColor: surfaceColor,
                 pinned: true,
-                backgroundColor: isDark ? AppColors.darkBg : Colors.white,
-                leading: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
+                elevation: 0,
+                leading: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back_ios_new,
+                    size: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
+                        color: AppColors.gundamRed,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.arrow_back_ios_new,
-                          size: 18,
-                          color: isDark ? Colors.white : const Color(0xFF0D0D0F)),
+                      child: const Icon(Icons.rocket_launch, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'GUNDAM STORE',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                        color: AppColors.gundamRed,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  IconButton(
+                    icon: Consumer<ThemeProvider>(
+                      builder: (context, theme, _) => Icon(
+                        theme.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                        color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                      ),
+                    ),
+                    onPressed: () {
+                      Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                    },
+                  ),
+                  if (Provider.of<AuthProvider>(context).isLoggedIn) ...[
+                    Stack(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.shopping_cart_outlined,
+                            color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                          ),
+                          onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
+                        ),
+                        Consumer<CartProvider>(
+                          builder: (context, cart, _) {
+                            if (cart.totalItems == 0) return const SizedBox.shrink();
+                            return Positioned(
+                              right: 6,
+                              top: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.gundamRed,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                child: Text(
+                                  '${cart.totalItems}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.logout,
+                        color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                      ),
+                      onPressed: () async {
+                        await Provider.of<AuthProvider>(context, listen: false).logout();
+                        if (!context.mounted) return;
+                        Navigator.pushReplacementNamed(context, AppRoutes.login);
+                      },
+                    ),
+                  ] else ...[
+                    IconButton(
+                      icon: Icon(
+                        Icons.login,
+                        color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                      ),
+                      tooltip: 'Đăng nhập',
+                      onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.person_add_outlined,
+                        color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                      ),
+                      tooltip: 'Đăng ký',
+                      onPressed: () => Navigator.pushNamed(context, AppRoutes.register),
+                    ),
+                  ],
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: CachedNetworkImage(
+                  imageUrl: gundam.imageUrl,
+                  height: 300,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Center(
+                    child: Lottie.asset(
+                      'assets/animations/splash.json',
+                      width: 80,
+                      height: 80,
                     ),
                   ),
-                ),
-                flexibleSpace: FlexibleSpaceBar(
-                  background: CachedNetworkImage(
-                    imageUrl: gundam.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Center(
-                      child: Lottie.asset(
-                        'assets/animations/splash.json',
-                        width: 80,
-                        height: 80,
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: isDark ? AppColors.darkSurface : Colors.grey.shade100,
-                      child: const Icon(Icons.broken_image_outlined,
-                          size: 60, color: Color(0xFF444450)),
-                    ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 300,
+                    color: isDark ? AppColors.darkSurface : Colors.grey.shade100,
+                    child: const Icon(Icons.broken_image_outlined,
+                        size: 60, color: Color(0xFF444450)),
                   ),
                 ),
               ),
@@ -238,6 +340,11 @@ class ProductDetailScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: gundam.stock > 0
                       ? () {
+                          final auth = Provider.of<AuthProvider>(context, listen: false);
+                          if (!auth.isLoggedIn) {
+                            Navigator.pushNamed(context, AppRoutes.login);
+                            return;
+                          }
                           Provider.of<CartProvider>(context, listen: false).addItem(
                             gundam.id!,
                             gundam.name,
@@ -256,7 +363,11 @@ class ProductDetailScreen extends StatelessWidget {
                       : null,
                   icon: const Icon(Icons.shopping_cart_outlined, size: 20),
                   label: Text(
-                    gundam.stock > 0 ? 'THÊM VÀO GIỎ' : 'HẾT HÀNG',
+                    gundam.stock > 0
+                        ? (Provider.of<AuthProvider>(context).isLoggedIn
+                            ? 'THÊM VÀO GIỎ'
+                            : 'ĐĂNG NHẬP ĐỂ MUA')
+                        : 'HẾT HÀNG',
                     style: const TextStyle(letterSpacing: 1),
                   ),
                 ),

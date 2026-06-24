@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/order_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../utils/constants.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -44,6 +45,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         title: const Text('Quản trị viên'),
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            icon: Consumer<ThemeProvider>(
+              builder: (context, theme, _) => Icon(
+                theme.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              ),
+            ),
+            onPressed: () {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.inventory_2_outlined),
             onPressed: () => Navigator.pushNamed(context, AppRoutes.adminProducts),

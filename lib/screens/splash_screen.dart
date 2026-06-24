@@ -59,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (isLoggedIn) {
       route = auth.isAdmin ? AppRoutes.admin : AppRoutes.home;
     } else {
-      route = AppRoutes.login;
+      route = AppRoutes.home;
     }
 
     Navigator.pushReplacementNamed(context, route);

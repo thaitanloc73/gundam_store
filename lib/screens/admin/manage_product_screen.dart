@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/gundam.dart';
 import '../../providers/gundam_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../utils/constants.dart';
 
 class ManageProductScreen extends StatefulWidget {
@@ -178,6 +179,16 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
       appBar: AppBar(
         title: const Text('Quản lý sản phẩm'),
         actions: [
+          IconButton(
+            icon: Consumer<ThemeProvider>(
+              builder: (context, theme, _) => Icon(
+                theme.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              ),
+            ),
+            onPressed: () {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showProductDialog(),

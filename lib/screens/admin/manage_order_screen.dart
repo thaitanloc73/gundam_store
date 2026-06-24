@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/order_item.dart';
 import '../../providers/order_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../utils/constants.dart';
 
 class ManageOrderScreen extends StatefulWidget {
@@ -25,7 +26,21 @@ class _ManageOrderScreenState extends State<ManageOrderScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản lý đơn hàng')),
+      appBar: AppBar(
+        title: const Text('Quản lý đơn hàng'),
+        actions: [
+          IconButton(
+            icon: Consumer<ThemeProvider>(
+              builder: (context, theme, _) => Icon(
+                theme.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              ),
+            ),
+            onPressed: () {
+              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+            },
+          ),
+        ],
+      ),
       body: Consumer<OrderProvider>(
         builder: (context, orderProvider, _) {
           if (orderProvider.isLoading) {

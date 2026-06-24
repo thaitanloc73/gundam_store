@@ -50,8 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
         slivers: [
           SliverAppBar(
             backgroundColor: surfaceColor,
-            floating: true,
-            snap: true,
+            pinned: true,
             elevation: 0,
             automaticallyImplyLeading: false,
             titleSpacing: 20,
@@ -90,54 +89,73 @@ class _HomeScreenState extends State<HomeScreen> {
                   Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
                 },
               ),
-              Stack(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.shopping_cart_outlined,
-                      color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+              if (Provider.of<AuthProvider>(context).isLoggedIn) ...[
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.shopping_cart_outlined,
+                        color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                      ),
+                      onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
                     ),
-                    onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
-                  ),
-                  Consumer<CartProvider>(
-                    builder: (context, cart, _) {
-                      if (cart.totalItems == 0) return const SizedBox.shrink();
-                      return Positioned(
-                        right: 6,
-                        top: 6,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            color: AppColors.gundamRed,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                          child: Text(
-                            '${cart.totalItems}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                    Consumer<CartProvider>(
+                      builder: (context, cart, _) {
+                        if (cart.totalItems == 0) return const SizedBox.shrink();
+                        return Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: AppColors.gundamRed,
+                              shape: BoxShape.circle,
                             ),
-                            textAlign: TextAlign.center,
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(
+                              '${cart.totalItems}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.logout,
-                  color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                onPressed: () async {
-                  await Provider.of<AuthProvider>(context, listen: false).logout();
-                  if (!mounted) return;
-                  Navigator.pushReplacementNamed(context, AppRoutes.login);
-                },
-              ),
+                IconButton(
+                  icon: Icon(
+                    Icons.logout,
+                    color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                  ),
+                  onPressed: () async {
+                    await Provider.of<AuthProvider>(context, listen: false).logout();
+                    if (!mounted) return;
+                    Navigator.pushReplacementNamed(context, AppRoutes.login);
+                  },
+                ),
+              ] else ...[
+                IconButton(
+                  icon: Icon(
+                    Icons.login,
+                    color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                  ),
+                  tooltip: 'Đăng nhập',
+                  onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.person_add_outlined,
+                    color: isDark ? Colors.white : const Color(0xFF0D0D0F),
+                  ),
+                  tooltip: 'Đăng ký',
+                  onPressed: () => Navigator.pushNamed(context, AppRoutes.register),
+                ),
+              ],
             ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(56),
