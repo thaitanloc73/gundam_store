@@ -126,7 +126,7 @@ class OrderProvider extends ChangeNotifier {
       double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        if (data['status'] == 'Delivered') { // only count delivered orders?
+        if (data['status'] == 'Completed') {
           total += (data['total_amount'] as num).toDouble();
         }
       }
