@@ -196,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.login),
                         child: const Text(
                           'Đăng nhập',
                           style: TextStyle(
