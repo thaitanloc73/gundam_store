@@ -1,15 +1,16 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/gundam_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/order_provider.dart';
-import 'services/database_service.dart';
+import 'providers/favorite_provider.dart';
+import 'providers/favorite_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -20,19 +21,15 @@ import 'screens/checkout_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/admin/manage_product_screen.dart';
 import 'screens/admin/manage_order_screen.dart';
+import 'screens/favorites_screen.dart';
 import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (kIsWeb) {
-    databaseFactory = databaseFactoryFfiWeb;
-  } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
-
-  await DatabaseService().database;
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   final themeProvider = ThemeProvider();
   await themeProvider.loadTheme();
@@ -45,6 +42,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => GundamProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => FavoriteProvider()),
       ],
       child: const MyApp(),
     ),
@@ -74,6 +72,7 @@ class MyApp extends StatelessWidget {
             AppRoutes.admin: (context) => const AdminDashboardScreen(),
             AppRoutes.adminProducts: (context) => const ManageProductScreen(),
             AppRoutes.adminOrders: (context) => const ManageOrderScreen(),
+            AppRoutes.favorites: (context) => const FavoritesScreen(),
           },
         );
       },

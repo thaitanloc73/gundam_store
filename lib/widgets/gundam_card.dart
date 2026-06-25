@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
 import '../models/gundam.dart';
+import '../providers/auth_provider.dart';
+import '../providers/favorite_provider.dart';
 import '../utils/constants.dart';
 
 class GundamCard extends StatelessWidget {
@@ -15,6 +18,7 @@ class GundamCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppColors.darkCard : AppColors.lightCard;
     final borderColor = isDark ? AppColors.darkBorder : Colors.grey.shade200;
+    final auth = Provider.of<AuthProvider>(context);
 
     return GestureDetector(
       onTap: onTap,
@@ -33,17 +37,23 @@ class GundamCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    CachedNetworkImage(
-                      imageUrl: gundam.imageUrl,
+                    Image.network(
+                      gundam.imageUrl,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Center(
-                        child: Lottie.asset(
-                          'assets/animations/splash.json',
-                          width: 50,
-                          height: 50,
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
+                      headers: const {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Lottie.asset(
+                            'assets/animations/splash.json',
+                            width: 50,
+                            height: 50,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Container(
                         color: isDark ? AppColors.darkSurface : Colors.grey.shade100,
                         child: const Icon(Icons.broken_image_outlined, color: Color(0xFF444450)),
                       ),
@@ -108,6 +118,35 @@ class GundamCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (auth.isLoggedIn && gundam.id != null)
+                      Positioned(
+                        bottom: 6,
+                        right: 6,
+                        child: Consumer<FavoriteProvider>(
+                          builder: (context, favProvider, _) {
+                            final isFav = favProvider.isFavorite(gundam.id!);
+                            return GestureDetector(
+                              onTap: () {
+                                favProvider.toggleFavorite(gundam.id!);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.6)
+                                      : Colors.white.withValues(alpha: 0.9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isFav ? Icons.favorite : Icons.favorite_border,
+                                  color: isFav ? AppColors.gundamRed : (isDark ? Colors.white70 : Colors.grey),
+                                  size: 18,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -156,3 +195,4 @@ class GundamCard extends StatelessWidget {
     );
   }
 }
+

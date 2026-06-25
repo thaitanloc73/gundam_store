@@ -14,12 +14,31 @@ class ManageProductScreen extends StatefulWidget {
 }
 
 class _ManageProductScreenState extends State<ManageProductScreen> {
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
       Provider.of<GundamProvider>(context, listen: false).fetchGundams();
     });
+  }
+
+
+  String _getGradeExplanation(String grade) {
+    switch (grade) {
+      case 'SD':
+        return 'Mô hình đầu to, thân nhỏ.';
+      case 'HG':
+        return 'Chi tiết cơ bản, tỉ lệ thường 1/144.';
+      case 'RG':
+        return 'Tỉ lệ 1/144 nhưng chi tiết cao hơn HG.';
+      case 'MG':
+        return 'Tỉ lệ 1/100, nhiều chi tiết và khung xương bên trong.';
+      case 'PG':
+        return 'Tỉ lệ 1/60, cao cấp nhất, kích thước lớn và rất chi tiết.';
+      default:
+        return '';
+    }
   }
 
   void _showProductDialog({Gundam? gundam}) {
@@ -55,7 +74,34 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
                   items: ['SD', 'HG', 'RG', 'MG', 'PG']
                       .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                       .toList(),
-                  onChanged: (v) => gradeCtrl.text = v ?? 'HG',
+                  onChanged: (v) {
+                    if (v != null) {
+                      gradeCtrl.text = v;
+                    }
+                  },
+                ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: gradeCtrl,
+                  builder: (context, value, _) {
+                    final grade = value.text;
+                    if (grade.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, size: 14, color: Colors.grey.shade600),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _getGradeExplanation(grade),
+                              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -145,7 +191,7 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
     );
   }
 
-  void _confirmDelete(int id) {
+  void _confirmDelete(String id) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -215,12 +261,15 @@ class _ManageProductScreenState extends State<ManageProductScreen> {
                 child: ListTile(
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
-                    child: CachedNetworkImage(
-                      imageUrl: gundam.imageUrl,
+                    child: Image.network(
+                      gundam.imageUrl,
                       width: 50,
                       height: 50,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+                      headers: const {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                      },
+                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
                     ),
                   ),
                   title: Text(gundam.name, maxLines: 1, overflow: TextOverflow.ellipsis),

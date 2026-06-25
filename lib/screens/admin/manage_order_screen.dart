@@ -117,57 +117,43 @@ class _ManageOrderScreenState extends State<ManageOrderScreen> {
                         )
                       : Icon(Icons.check_circle, color: Colors.green.shade400),
                   children: [
-                    FutureBuilder<List<OrderItem>>(
-                      future: orderProvider.getOrderItems(order.id!),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          );
-                        }
-
-                        final items = snapshot.data ?? [];
-                        if (items.isEmpty) {
-                          return const Padding(
+                    Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ĐC: ${order.address}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF888890) : Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                'SĐT: ${order.phone}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFF888890) : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (order.items.isEmpty)
+                          const Padding(
                             padding: EdgeInsets.all(16),
                             child: Text('Không có sản phẩm'),
-                          );
-                        }
-
-                        return Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'ĐC: ${order.address}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark ? const Color(0xFF888890) : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  Text(
-                                    'SĐT: ${order.phone}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark ? const Color(0xFF888890) : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ...items.map((item) => ListTile(
-                              dense: true,
-                              title: Text(item.gundamName ?? 'Gundam #${item.gundamId}'),
-                              subtitle: Text('Số lượng: ${item.quantity}'),
-                              trailing: Text(formatPrice(item.price * item.quantity)),
-                            )),
-                          ],
-                        );
-                      },
+                          )
+                        else
+                          ...order.items.map((item) => ListTile(
+                            dense: true,
+                            title: Text(item.gundamName ?? 'Gundam #${item.gundamId}'),
+                            subtitle: Text('Số lượng: ${item.quantity}'),
+                            trailing: Text(formatPrice(item.price * item.quantity)),
+                          )),
+                      ],
                     ),
                   ],
                 ),

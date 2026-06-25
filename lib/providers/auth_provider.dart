@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
-import '../services/database_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final DatabaseService _db = DatabaseService();
+  final fb_auth.FirebaseAuth _auth = fb_auth.FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
   User? _currentUser;
   bool _isLoading = false;
 
@@ -14,16 +17,40 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   Future<bool> tryAutoLogin() async {
-    final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString('user_email');
-    if (email == null) return false;
-
-    final user = await _db.getUserByEmail(email);
+    final user = _auth.currentUser;
     if (user == null) return false;
 
-    _currentUser = user;
-    notifyListeners();
-    return true;
+    return await _fetchUserData(user.uid, user.email!);
+  }
+
+  Future<bool> _fetchUserData(String uid, String email) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        _currentUser = User(
+          id: uid,
+          email: email,
+          password: '', // Firebase handles password
+          role: data['role'] ?? 'customer',
+          name: data['name'] ?? '',
+        );
+      } else {
+        // Fallback if doc doesn't exist (e.g. created via console)
+        _currentUser = User(
+          id: uid,
+          email: email,
+          password: '',
+          role: 'customer',
+          name: email.split('@')[0],
+        );
+      }
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('Error fetching user data: $e');
+      return false;
+    }
   }
 
   Future<String?> login(String email, String password) async {
@@ -31,19 +58,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final user = await _db.getUserByEmail(email);
-      if (user == null) {
-        return 'Không tìm thấy tài khoản với email này.';
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      if (credential.user != null) {
+        await _fetchUserData(credential.user!.uid, credential.user!.email!);
+        return null;
       }
-      if (user.password != password) {
+      return 'Lỗi đăng nhập không xác định.';
+    } on fb_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' || e.code == 'invalid-email') {
+        return 'Không tìm thấy tài khoản với email này.';
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         return 'Mật khẩu không chính xác.';
       }
-
-      _currentUser = user;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_email', email);
-      notifyListeners();
-      return null;
+      return 'Lỗi: ${e.message}';
     } catch (e) {
       return 'Có lỗi xảy ra: $e';
     } finally {
@@ -57,20 +88,29 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final existing = await _db.getUserByEmail(email);
-      if (existing != null) {
-        return 'Email này đã được sử dụng.';
-      }
-
-      final user = User(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-        role: 'customer',
-        name: name,
       );
 
-      await _db.insertUser(user);
-      return null;
+      if (credential.user != null) {
+        // Create user document in Firestore
+        await _firestore.collection('users').doc(credential.user!.uid).set({
+          'name': name,
+          'email': email,
+          'role': 'customer',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        
+        await _fetchUserData(credential.user!.uid, email);
+        return null;
+      }
+      return 'Lỗi đăng ký không xác định.';
+    } on fb_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        return 'Email này đã được sử dụng.';
+      }
+      return 'Lỗi: ${e.message}';
     } catch (e) {
       return 'Có lỗi xảy ra: $e';
     } finally {
@@ -80,9 +120,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _auth.signOut();
     _currentUser = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_email');
     notifyListeners();
   }
 }

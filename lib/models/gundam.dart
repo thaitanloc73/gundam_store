@@ -1,5 +1,5 @@
 class Gundam {
-  final int? id;
+  final String? id;
   final String name;
   final String grade;
   final String scale;
@@ -32,9 +32,9 @@ class Gundam {
     };
   }
 
-  factory Gundam.fromMap(Map<String, dynamic> map) {
+  factory Gundam.fromMap(Map<String, dynamic> map, {String? id}) {
     return Gundam(
-      id: map['id'] as int?,
+      id: id ?? map['id']?.toString(),
       name: map['name'] as String,
       grade: map['grade'] as String,
       scale: map['scale'] as String,

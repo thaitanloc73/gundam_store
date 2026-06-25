@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/favorite_provider.dart';
 import '../utils/constants.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -54,6 +55,11 @@ class _SplashScreenState extends State<SplashScreen>
     final isLoggedIn = await auth.tryAutoLogin();
 
     if (!mounted) return;
+
+    if (isLoggedIn && auth.currentUser != null) {
+      await Provider.of<FavoriteProvider>(context, listen: false)
+          .loadFavorites(auth.currentUser!.id!);
+    }
 
     String route;
     if (isLoggedIn) {
@@ -114,11 +120,14 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Lottie.asset(
-                            'assets/animations/splash.json',
-                            width: 180,
-                            height: 180,
-                            fit: BoxFit.contain,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              width: 140,
+                              height: 140,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                           const SizedBox(height: 28),
                           Container(

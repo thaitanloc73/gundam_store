@@ -1,5 +1,5 @@
 class User {
-  final int? id;
+  final String? id;
   final String email;
   final String password;
   final String role;
@@ -23,9 +23,9 @@ class User {
     };
   }
 
-  factory User.fromMap(Map<String, dynamic> map) {
+  factory User.fromMap(Map<String, dynamic> map, {String? id}) {
     return User(
-      id: map['id'] as int?,
+      id: id ?? map['id']?.toString(),
       email: map['email'] as String,
       password: map['password'] as String,
       role: map['role'] as String,

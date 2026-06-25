@@ -7,6 +7,7 @@ import '../providers/gundam_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/favorite_provider.dart';
 import '../utils/constants.dart';
 
 class ProductDetailScreen extends StatelessWidget {
@@ -14,7 +15,7 @@ class ProductDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gundamId = ModalRoute.of(context)!.settings.arguments as int;
+    final gundamId = ModalRoute.of(context)!.settings.arguments as String;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
     final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
@@ -97,6 +98,19 @@ class ProductDetailScreen extends StatelessWidget {
                     },
                   ),
                   if (Provider.of<AuthProvider>(context).isLoggedIn) ...[
+                    Consumer<FavoriteProvider>(
+                      builder: (context, favProvider, _) {
+                        final isFav = favProvider.isFavorite(gundam.id!);
+                        return IconButton(
+                          icon: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? AppColors.gundamRed : (isDark ? Colors.white : const Color(0xFF0D0D0F)),
+                          ),
+                          tooltip: 'Yêu thích',
+                          onPressed: () => favProvider.toggleFavorite(gundam.id!),
+                        );
+                      },
+                    ),
                     Stack(
                       children: [
                         IconButton(
@@ -166,19 +180,28 @@ class ProductDetailScreen extends StatelessWidget {
                 ],
               ),
               SliverToBoxAdapter(
-                child: CachedNetworkImage(
-                  imageUrl: gundam.imageUrl,
+                child: Image.network(
+                  gundam.imageUrl,
                   height: 300,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Center(
-                    child: Lottie.asset(
-                      'assets/animations/splash.json',
-                      width: 80,
-                      height: 80,
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
+                  headers: const {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return SizedBox(
+                      height: 300,
+                      child: Center(
+                        child: Lottie.asset(
+                          'assets/animations/splash.json',
+                          width: 80,
+                          height: 80,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
                     height: 300,
                     color: isDark ? AppColors.darkSurface : Colors.grey.shade100,
                     child: const Icon(Icons.broken_image_outlined,
